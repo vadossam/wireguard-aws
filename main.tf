@@ -1,15 +1,3 @@
-locals {
-  user_data = <<-EOT
-  #!/bin/bash
-  git clone https://github.com/pprometey/wireguard_aws.git
-  cd wireguard_aws
-  sed -z -i "$(echo s/read/#read/{4..1}\;)" install.sh
-  sed -i '8i ENDPOINT=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):55444' install.sh
-  sudo ./install.sh
-  sudo ./add-client.sh vadim
-  EOT
-}
-
 module "ec2_instance" {
   source  = "terraform-aws-modules/ec2-instance/aws"
   version = "~> 4.0"
@@ -20,7 +8,14 @@ module "ec2_instance" {
   instance_type = "t2.micro"
   key_name      = "aws"
 
-  user_data_base64            = base64encode(local.user_data)
+  user_data_base64 = base64encode(
+    templatefile("templates/user_data.tftpl",
+      {
+        port     = var.port,
+        username = var.username
+      }
+    )
+  )
   user_data_replace_on_change = true
 
   # select availability zone
@@ -50,7 +45,7 @@ resource "null_resource" "download_wireguard_config" {
   provisioner "local-exec" {
     command = <<-EOT
       rsync -e 'ssh -o StrictHostKeyChecking=no -i ~/.ssh/aws.pem' --rsync-path='sudo rsync' \
-      ubuntu@${aws_eip.elastic_ip.public_ip}:/etc/wireguard/clients/vadim/vadim.conf ~/wireguard.conf
+      ubuntu@${aws_eip.elastic_ip.public_ip}:/etc/wireguard/clients/${var.username}.conf ~/wireguard.conf
     EOT
   }
 

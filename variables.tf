@@ -13,3 +13,9 @@ variable "port" {
   description = "Port for wireguard server"
   default     = "55444"
 }
+
+variable "username" {
+  type        = string
+  description = "Client username for wireguard server"
+  default     = "vadim"
+}
